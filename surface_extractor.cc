@@ -28,6 +28,89 @@ const int kEdgeList[12][2] = {
     {0, 4}, {1, 5}, {2, 6}, {3, 7}
 };
 
+// Every face is given in clockwise order.
+const int kFaceList[6][4] = {
+    {0, 1, 2, 3}, {0, 4, 5, 1}, {0, 3, 7, 4},
+    {1, 5, 6, 2}, {2, 6, 7, 3}, {4, 7, 6, 5}
+};
+
+// vtx_1 and vtx_2 must share the same edge.
+bool reorder_edge_points(int *vtx_1, int *vtx_2, int *dim) {
+  for (*dim = 0; *dim < 3; (*dim)++) {
+    if (kVertexList[*vtx_1][*dim] != kVertexList[*vtx_2][*dim]) {
+      break;
+    }
+  }
+
+  if (kVertexList[*vtx_1][*dim] > kVertexList[*vtx_2][*dim]) {
+    std::swap(*vtx_1, *vtx_2);
+    return true;
+  }
+
+  return false;
+}
+
+void insert_face_point(int x, int y, int z, int face_id, int ****face_mark,
+                       double point_x, double point_y, double point_z,
+                       vtkPoints *mesh_points) {
+  if (face_mark[x][y][z][face_id] == -1) {
+    face_mark[x][y][z][face_id] = mesh_points->GetNumberOfPoints();
+    mesh_points->InsertNextPoint(point_x, point_y, point_z);
+  }
+}
+
+// alpha is the ratio from (x, y, z) to the other end.
+void insert_edge_point(int x, int y, int z, int dim, int ****edge_mark,
+                       double *origin, double *spacing, double alpha,
+                       vtkPoints *mesh_points) {
+  if (edge_mark[x][y][z][dim] == -1) {
+    edge_mark[x][y][z][dim] = mesh_points->GetNumberOfPoints();
+
+    int coordinates[3] = {x, y, z};
+    double point[3];
+    for (int i = 0; i < 3; i++) {
+      point[i] = origin[i] + spacing[i] * coordinates[i];
+    }
+
+    point[dim] += spacing[dim] * alpha;
+
+    mesh_points->InsertNextPoint(point[0], point[1], point[2]);
+  }
+}
+
+void insert_edge_point(int x, int y, int z, int point_id, int dim,
+                       int ****edge_mark, double *origin, double *spacing,
+                       double alpha, vtkPoints *mesh_points) {
+  insert_edge_point(x + kVertexList[point_id][0],
+                    y + kVertexList[point_id][1],
+                    z + kVertexList[point_id][2],
+                    dim, edge_mark, origin, spacing, alpha, mesh_points);
+}
+
+// alpha is the ratio from vtx_1 to vtx_2.
+// This method also adds the id of the edge point into the current cell of
+// mesh_cells.
+void insert_edge_point(int x, int y, int z, int vtx_1, int vtx_2,
+                       int ****edge_mark, double *origin, double *spacing,
+                       double alpha, vtkPoints *mesh_points,
+                       vtkCellArray *mesh_cells) {
+  int dim = -1;
+
+  if (reorder_edge_points(&vtx_1, &vtx_2, &dim)) {
+    alpha = 1.0 - alpha;
+  }
+ 
+  int start_x = kVertexList[vtx_1][0];
+  int start_y = kVertexList[vtx_1][1];
+  int start_z = kVertexList[vtx_1][2];
+
+  insert_edge_point(x + start_x, y + start_y, z + start_z, dim,
+                    edge_mark, origin, spacing, 0.5, mesh_points); 
+
+  mesh_cells->InsertCellPoint(
+      edge_mark[x + start_x][y + start_y][z + start_z][dim]);
+}
+
 }
 
 vtkPolyData *SurfaceExtractor::extract_surfaces(
@@ -43,11 +126,13 @@ vtkPolyData *SurfaceExtractor::extract_surfaces(
   int nz = dimensions[2];
 
   int ****edge_mark = create_4d_array<int>(nx, ny, nz, 3);
+  int ****face_mark = create_4d_array<int>(nx, ny, nz, 3);
   for (int x = 0; x < nx; x++) {
     for (int y = 0; y < ny; y++) {
       for (int z = 0; z < nz; z++) {
         for (int k = 0; k < 3; k++) {
           edge_mark[x][y][z][k] = -1;
+          face_mark[x][y][z][k] = -1;
         }
       }
     }
@@ -57,10 +142,6 @@ vtkPolyData *SurfaceExtractor::extract_surfaces(
       vtkSmartPointer<vtkPoints>::New();
   vtkSmartPointer<vtkCellArray> mesh_cells =
       vtkSmartPointer<vtkCellArray>::New();
-
-  /// DEBUG ///
-  int cnt = 0;
-  int max_region = 0;
 
   // Get mid-edge points
   for (int x = 0; x + 1 < nx; x++) {
@@ -103,69 +184,79 @@ vtkPolyData *SurfaceExtractor::extract_surfaces(
               int vtx_1 = kEdgeList[edge_idx][0];
               int vtx_2 = kEdgeList[edge_idx][1];
 
-              int dim;
-              for (dim = 0; dim < 3; dim++) {
-                if (kVertexList[vtx_1][dim] != kVertexList[vtx_2][dim]) {
-                  break;
-                }
-              }
-
-              if (kVertexList[vtx_1][dim] > kVertexList[vtx_2][dim]) {
-                std::swap(vtx_1, vtx_2);
-              }
-
-              int start_x = kVertexList[vtx_1][0];
-              int start_y = kVertexList[vtx_1][1];
-              int start_z = kVertexList[vtx_1][2];
-
-              int finish_x = kVertexList[vtx_2][0];
-              int finish_y = kVertexList[vtx_2][1];
-              int finish_z = kVertexList[vtx_2][2];
-
-              // Insert a new point to the mesh if necessary
-              if (edge_mark[x + start_x][y + start_y][z + start_z][dim]
-                  == -1) {
-                edge_mark[x + start_x][y + start_y][z + start_z][dim] =
-                    mesh_points->GetNumberOfPoints();
-
-                double aug_x = (finish_x - start_x) * spacing[0] / 2;
-                double aug_y = (finish_y - start_y) * spacing[1] / 2;
-                double aug_z = (finish_z - start_z) * spacing[2] / 2;
-
-                double point_x = origin[0] + spacing[0] * (x + start_x)
-                                 + aug_x;
-                double point_y = origin[1] + spacing[1] * (y + start_y)
-                                 + aug_y;
-                double point_z = origin[2] + spacing[2] * (z + start_z)
-                                 + aug_z;
-
-                mesh_points->InsertNextPoint(point_x, point_y, point_z);
-              }
-
-              mesh_cells->InsertCellPoint(
-                  edge_mark[x + start_x][y + start_y][z + start_z][dim]);
+              insert_edge_point(x, y, z, vtx_1, vtx_2,
+                                edge_mark, origin, spacing, 0.5,
+                                mesh_points, mesh_cells);
             }
           }
         } else {  // Need in-cell point and face point
-          /// DEBUG ///
-          cnt++;
-          if (code_sets.size() > max_region) {
-            max_region = code_sets.size();
-          }
+            double center_x = origin[0] + spacing[0] * (x + 0.5);
+            double center_y = origin[1] + spacing[1] * (y + 0.5);
+            double center_z = origin[2] + spacing[2] * (z + 0.5);
+            int center_id = mesh_points->GetNumberOfPoints();
+            mesh_points->InsertNextPoint(center_x, center_y, center_z);
+
+            for (int face_id = 0; face_id < 6; face_id++) {
+              std::set<int> face_code_sets;
+              int first_code = -1;
+              bool local_code[4];
+
+              for (int i = 0; i < 4; i++) {
+                int point_id = kFaceList[face_id][i];
+                int dx = kVertexList[point_id][0];
+                int dy = kVertexList[point_id][1];
+                int dz = kVertexList[point_id][2];
+                face_code_sets.insert(code[dx][dy][dz]);
+                if (i == 0) {
+                  first_code = code[dx][dy][dz];
+                }
+                local_code[i] = code[dx][dy][dz] == first_code;
+              }
+
+              if (face_code_sets.size() == 1) {
+                continue;
+              }
+
+              if (face_code_sets.size() == 2) {
+                // 1 + 3
+                int num_true = local_code[0] + local_code[1]
+                               + local_code[2] + local_code[3];
+                if (num_true == 3 || num_true == 1) {
+                  int single = -1;
+                  if (num_true == 1) {
+                    single = 0;
+                  } else {
+                    for (int i = 0; i < 4; i++) {
+                      if (!local_code[i]) {
+                        single = i;
+                        break;
+                      }
+                    }
+                  }
+
+                  int prev_id = kFaceList[face_id][(single + 3) % 4];
+                  int succ_id = kFaceList[face_id][(single + 1) % 4];
+                  int curr_id = kFaceList[face_id][single];
+
+                  
+
+                  continue;
+                }
+                // TODO
+              }
+              // TODO
+            }
         }
       }
     }
   }
-
-  /// DEBUG ///
-  printf("cnt = %d\n", cnt);
-  printf("max_region = %d\n", max_region);
 
   vtkPolyData *mesh = vtkPolyData::New();
   mesh->SetPoints(mesh_points);
   mesh->SetPolys(mesh_cells);
 
   delete_matrix(edge_mark);
+  delete_matrix(face_mark);
 
   return mesh;
 }
