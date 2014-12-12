@@ -10,8 +10,7 @@ class SurfaceExtractor {
  public:
   // Region numbers are consecutive 0-based integers.
   vtkPolyData *extract_surfaces(vtkStructuredPoints *ftle,
-                                vtkStructuredPoints *basins,
-                                int num_regions);
+                                vtkStructuredPoints *basins);
 };
 
 #endif  // SURFACE_EXTRACTOR_H_
