@@ -50,19 +50,22 @@ bool reorder_edge_points(int *vtx_1, int *vtx_2, int *dim) {
   return false;
 }
 
-void insert_face_point(int x, int y, int z, int face_id, int ****face_mark,
-                       double point_x, double point_y, double point_z,
-                       vtkPoints *mesh_points) {
+int insert_face_point(int x, int y, int z, int face_id, int ****face_mark,
+                      double point_x, double point_y, double point_z,
+                      vtkPoints *mesh_points) {
   if (face_mark[x][y][z][face_id] == -1) {
     face_mark[x][y][z][face_id] = mesh_points->GetNumberOfPoints();
     mesh_points->InsertNextPoint(point_x, point_y, point_z);
   }
+
+  return face_mark[x][y][z][face_id];
 }
 
 // alpha is the ratio from (x, y, z) to the other end.
-void insert_edge_point(int x, int y, int z, int dim, int ****edge_mark,
-                       double *origin, double *spacing, double alpha,
-                       vtkPoints *mesh_points) {
+int insert_edge_point_basic_1(
+    int x, int y, int z, int dim, int ****edge_mark,
+    double *origin, double *spacing, double alpha,
+    vtkPoints *mesh_points) {
   if (edge_mark[x][y][z][dim] == -1) {
     edge_mark[x][y][z][dim] = mesh_points->GetNumberOfPoints();
 
@@ -76,39 +79,50 @@ void insert_edge_point(int x, int y, int z, int dim, int ****edge_mark,
 
     mesh_points->InsertNextPoint(point[0], point[1], point[2]);
   }
+
+  return edge_mark[x][y][z][dim];
 }
 
-void insert_edge_point(int x, int y, int z, int point_id, int dim,
-                       int ****edge_mark, double *origin, double *spacing,
-                       double alpha, vtkPoints *mesh_points) {
-  insert_edge_point(x + kVertexList[point_id][0],
-                    y + kVertexList[point_id][1],
-                    z + kVertexList[point_id][2],
-                    dim, edge_mark, origin, spacing, alpha, mesh_points);
+int insert_edge_point_basic_2(
+    int x, int y, int z, int point_id, int dim,
+    int ****edge_mark, double *origin, double *spacing,
+    double alpha, vtkPoints *mesh_points) {
+  return insert_edge_point_basic_1(
+      x + kVertexList[point_id][0],
+      y + kVertexList[point_id][1],
+      z + kVertexList[point_id][2],
+      dim, edge_mark, origin, spacing, alpha,
+      mesh_points);
 }
 
 // alpha is the ratio from vtx_1 to vtx_2.
-// This method also adds the id of the edge point into the current cell of
-// mesh_cells.
-void insert_edge_point(int x, int y, int z, int vtx_1, int vtx_2,
+int insert_edge_point(int x, int y, int z, int vtx_1, int vtx_2,
                        int ****edge_mark, double *origin, double *spacing,
-                       double alpha, vtkPoints *mesh_points,
-                       vtkCellArray *mesh_cells) {
+                       double alpha, vtkPoints *mesh_points) {
   int dim = -1;
 
   if (reorder_edge_points(&vtx_1, &vtx_2, &dim)) {
     alpha = 1.0 - alpha;
   }
  
-  int start_x = kVertexList[vtx_1][0];
-  int start_y = kVertexList[vtx_1][1];
-  int start_z = kVertexList[vtx_1][2];
+  return insert_edge_point_basic_2(x, y, z, vtx_1, dim,
+                                   edge_mark, origin, spacing, 0.5,
+                                   mesh_points);
+}
 
-  insert_edge_point(x + start_x, y + start_y, z + start_z, dim,
-                    edge_mark, origin, spacing, 0.5, mesh_points); 
+// This method also adds the id of the edge point into the current cell of
+// mesh_cells.
+int insert_edge_point(int x, int y, int z, int vtx_1, int vtx_2,
+                       int ****edge_mark, double *origin, double *spacing,
+                       double alpha, vtkPoints *mesh_points,
+                       vtkCellArray *mesh_cells) {
+  int point_id = insert_edge_point(x, y, z, vtx_1, vtx_2,
+                                   edge_mark, origin, spacing, 0.5,
+                                   mesh_points);
 
-  mesh_cells->InsertCellPoint(
-      edge_mark[x + start_x][y + start_y][z + start_z][dim]);
+  mesh_cells->InsertCellPoint(point_id);
+
+  return point_id;
 }
 
 }
@@ -200,6 +214,7 @@ vtkPolyData *SurfaceExtractor::extract_surfaces(
               std::set<int> face_code_sets;
               int first_code = -1;
               bool local_code[4];
+              int local_non_binary_code[4];
 
               for (int i = 0; i < 4; i++) {
                 int point_id = kFaceList[face_id][i];
@@ -211,6 +226,7 @@ vtkPolyData *SurfaceExtractor::extract_surfaces(
                   first_code = code[dx][dy][dz];
                 }
                 local_code[i] = code[dx][dy][dz] == first_code;
+                local_non_binary_code[i] = code[dx][dy][dz];
               }
 
               if (face_code_sets.size() == 1) {
@@ -218,10 +234,9 @@ vtkPolyData *SurfaceExtractor::extract_surfaces(
               }
 
               if (face_code_sets.size() == 2) {
-                // 1 + 3
                 int num_true = local_code[0] + local_code[1]
                                + local_code[2] + local_code[3];
-                if (num_true == 3 || num_true == 1) {
+                if (num_true == 3 || num_true == 1) {  // 1 + 3
                   int single = -1;
                   if (num_true == 1) {
                     single = 0;
@@ -238,13 +253,67 @@ vtkPolyData *SurfaceExtractor::extract_surfaces(
                   int succ_id = kFaceList[face_id][(single + 1) % 4];
                   int curr_id = kFaceList[face_id][single];
 
-                  
+                  mesh_cells->InsertNextCell(3);
+                  mesh_cells->InsertCellPoint(center_id);
+                  insert_edge_point(x, y, z, prev_id, curr_id,
+                      edge_mark, origin, spacing, 0.5,
+                      mesh_points, mesh_cells);
+                  insert_edge_point(x, y, z, succ_id, curr_id,
+                      edge_mark, origin, spacing, 0.5,
+                      mesh_points, mesh_cells);
 
                   continue;
+                } else if (num_true == 2
+                           && (local_code[0] == local_code[1]
+                               || local_code[1] == local_code[2])) {
+                  // AA    BB
+                  // BB or AA
+                  mesh_cells->InsertNextCell(3);
+                  mesh_cells->InsertCellPoint(center_id);
+                  for (int i = 0; i < 4; i++) {
+                    if (local_code[i] != local_code[(i + 1) % 4]) {
+                      int curr_id = kFaceList[face_id][i];
+                      int succ_id = kFaceList[face_id][(i + 1) % 4];
+                      insert_edge_point(x, y, z, curr_id, succ_id,
+                                        edge_mark, origin, spacing, 0.5,
+                                        mesh_points, mesh_cells);
+                    }
+                  }
+                  continue;
                 }
-                // TODO
               }
-              // TODO
+
+              double face_point_x = 0.0;
+              double face_point_y = 0.0;
+              double face_point_z = 0.0;
+              for (int i = 0; i < 4; i++) {
+                int point_id = kFaceList[face_id][i];
+                face_point_x += spacing[0] * kVertexList[point_id][0];
+                face_point_y += spacing[1] * kVertexList[point_id][1];
+                face_point_z += spacing[2] * kVertexList[point_id][2];
+              }
+
+              face_point_x = origin[0] + spacing[0] * x + face_point_x / 4;
+              face_point_y = origin[1] + spacing[1] * y + face_point_y / 4;
+              face_point_z = origin[2] + spacing[2] * z + face_point_z / 4;
+
+              int face_point_id = insert_face_point(
+                  x, y, z, face_id, face_mark,
+                  face_point_x, face_point_y, face_point_z,
+                  mesh_points);
+
+              for (int i = 0; i < 4; i++) {
+                if (local_non_binary_code[i] != local_non_binary_code[(i + 1) % 4]) {
+                  int curr_id = kFaceList[face_id][i];
+                  int succ_id = kFaceList[face_id][(i + 1) % 4];
+                  mesh_cells->InsertNextCell(3);
+                  mesh_cells->InsertCellPoint(center_id);
+                  mesh_cells->InsertCellPoint(face_point_id);
+                  insert_edge_point(x, y, z, curr_id, succ_id,
+                                    edge_mark, origin, spacing, 0.5,
+                                    mesh_points, mesh_cells);
+                }
+              }
             }
         }
       }
