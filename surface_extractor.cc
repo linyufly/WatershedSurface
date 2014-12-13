@@ -42,6 +42,10 @@ bool reorder_edge_points(int *vtx_1, int *vtx_2, int *dim) {
     }
   }
 
+  if (*dim >= 3) {
+    report_error("In reorder_edge_points, *dim >= 3.\n");
+  }
+
   if (kVertexList[*vtx_1][*dim] > kVertexList[*vtx_2][*dim]) {
     std::swap(*vtx_1, *vtx_2);
     return true;
@@ -53,6 +57,21 @@ bool reorder_edge_points(int *vtx_1, int *vtx_2, int *dim) {
 int insert_face_point(int x, int y, int z, int face_id, int ****face_mark,
                       double point_x, double point_y, double point_z,
                       vtkPoints *mesh_points) {
+  switch (face_id) {
+    case 3: {
+      x++;
+      face_id = 2;
+    } break;
+    case 4: {
+      y++;
+      face_id = 1;
+    } break;
+    case 5: {
+      z++;
+      face_id = 0;
+    } break;
+  }
+
   if (face_mark[x][y][z][face_id] == -1) {
     face_mark[x][y][z][face_id] = mesh_points->GetNumberOfPoints();
     mesh_points->InsertNextPoint(point_x, point_y, point_z);
@@ -163,6 +182,10 @@ vtkPolyData *SurfaceExtractor::extract_surfaces(
       for (int z = 0; z + 1 < nz; z++) {
         int code[2][2][2];
         std::set<int> code_sets;
+
+        /// DEBUG ///
+        bool too_small = false;
+
         for (int dx = 0; dx < 2; dx++) {
           for (int dy = 0; dy < 2; dy++) {
             for (int dz = 0; dz < 2; dz++) {
@@ -174,9 +197,20 @@ vtkPolyData *SurfaceExtractor::extract_surfaces(
                                        ->GetScalars()
                                        ->GetTuple1(point_id);
               code_sets.insert(code[dx][dy][dz]);
+
+              /// DEBUG ///
+              if (ftle->GetPointData()->GetScalars()->GetTuple1(point_id) < 0.06) {
+                too_small = true;
+              }
             }
           }
         }
+
+        /// DEBUG ///
+        //if (too_small) {
+        //  continue;
+        //}
+
         if (code_sets.size() == 1) {
           continue;
         }

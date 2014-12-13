@@ -19,8 +19,8 @@
 
 // const char *kBasinFile = "data/basins_cell_8.vtk";
 // const char *kFTLEFile = "data/ftle_cell.vtk";
-const char *kBasinFile = "data/basins.vtk";
-const char *kFTLEFile = "data/ftle.vtk";
+const char *kBasinFile = "data/sphere_basins.vtk";
+const char *kFTLEFile = "data/sphere_ftle.vtk";
 const char *kPolyDataFile = "poly_mesh.vtk";
 
 void extract_surfaces_test() {
