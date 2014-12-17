@@ -27,7 +27,7 @@ void generate_two_spheres_test() {
   vtkStructuredPoints *ftle = NULL;
 
   SphereGenerator generator;
-  generator.generate_two_spheres(50, 40, 40, 1.0, &ftle, &basins);
+  generator.generate_two_spheres(250, 200, 200, 1.0, &ftle, &basins);
 
   vtkSmartPointer<vtkStructuredPointsWriter> writer =
     vtkSmartPointer<vtkStructuredPointsWriter>::New();

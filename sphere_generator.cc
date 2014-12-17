@@ -69,7 +69,8 @@ void SphereGenerator::generate_two_spheres(
         double d1 = distance(coord_x, coord_y, coord_z, c1_x, c_y, c_z);
         double d2 = distance(coord_x, coord_y, coord_z, c2_x, c_y, c_z);
 
-        double d = (d1 < d2) ? d1 : d2;
+        double d = (fabs(d1 - radius) < fabs(d2 - radius)) ?
+            fabs(d1 - radius) : fabs(d2 - radius);
 
         scalars->SetTuple1(index, 1 / (d + 1));
 
