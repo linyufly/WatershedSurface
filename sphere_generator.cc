@@ -24,6 +24,69 @@ double distance(double x1, double y1, double z1,
 
 };
 
+void SphereGenerator::generate_one_sphere(
+    int nx, int ny, int nz, double radius,
+    vtkStructuredPoints **scalar_field,
+    vtkStructuredPoints **basins) {
+  double spacing[3] = {4 * radius / (nx - 1),
+                       4 * radius / (ny - 1),
+                       4 * radius / (nz - 1)};
+  int dimensions[3] = {nx, ny, nz};
+  double origin[3] = {0.0, 0.0, 0.0};
+  double c_x = 2 * radius;
+  double c_y = 2 * radius;
+  double c_z = 2 * radius;
+
+  *scalar_field = vtkStructuredPoints::New();
+  (*scalar_field)->SetDimensions(dimensions);
+  (*scalar_field)->SetOrigin(origin);
+  (*scalar_field)->SetSpacing(spacing);
+
+  *basins = vtkStructuredPoints::New();
+  (*basins)->CopyStructure(*scalar_field);
+
+  vtkSmartPointer<vtkDoubleArray> scalars =
+      vtkSmartPointer<vtkDoubleArray>::New();
+  scalars->SetName("ftle");
+  scalars->SetNumberOfComponents(1);
+  scalars->SetNumberOfTuples(nx * ny * nz);
+
+  vtkSmartPointer<vtkIntArray> codes =
+      vtkSmartPointer<vtkIntArray>::New();
+  codes->SetName("region");
+  codes->SetNumberOfComponents(1);
+  codes->SetNumberOfTuples(nx * ny * nz);
+
+  for (int x = 0; x < nx; x++) {
+    for (int y = 0; y < ny; y++) {
+      for (int z = 0; z < nz; z++) {
+        int index = (z * ny + y) * nx + x;
+        double coord_x = x * spacing[0];
+        double coord_y = y * spacing[1];
+        double coord_z = z * spacing[2];
+
+        double d = distance(coord_x, coord_y, coord_z, c_x, c_y, c_z);
+        d = fabs(d - radius);
+
+        scalars->SetTuple1(index, 1 / (d + 1));
+
+        int region = -1;
+
+        if (d >= radius) {
+          region = 0;
+        } else {
+          region = 1;
+        }
+
+        codes->SetTuple1(index, region);
+      }
+    }
+  }
+
+  (*scalar_field)->GetPointData()->SetScalars(scalars);
+  (*basins)->GetPointData()->SetScalars(codes);
+}
+
 void SphereGenerator::generate_two_spheres(
     int nx, int ny, int nz, double radius,
     vtkStructuredPoints **scalar_field,
