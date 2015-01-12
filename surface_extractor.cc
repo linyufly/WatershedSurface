@@ -150,13 +150,16 @@ vtkPolyData *SurfaceExtractor::extract_surfaces(
     vtkStructuredPoints *ftle, vtkStructuredPoints *basins) {
   int dimensions[3];
   double spacing[3], origin[3];
-  ftle->GetDimensions(dimensions);
-  ftle->GetSpacing(spacing);
-  ftle->GetOrigin(origin);
+  basins->GetDimensions(dimensions);
+  basins->GetSpacing(spacing);
+  basins->GetOrigin(origin);
 
   int nx = dimensions[0];
   int ny = dimensions[1];
   int nz = dimensions[2];
+
+  /// DEBUG ///
+  printf("nx, ny, nz: %d, %d, %d\n", nx, ny, nz);
 
   int ****edge_mark = create_4d_array<int>(nx, ny, nz, 3);
   int ****face_mark = create_4d_array<int>(nx, ny, nz, 3);
@@ -184,7 +187,7 @@ vtkPolyData *SurfaceExtractor::extract_surfaces(
         std::set<int> code_sets;
 
         /// DEBUG ///
-        bool too_small = false;
+        // bool too_small = false;
 
         for (int dx = 0; dx < 2; dx++) {
           for (int dy = 0; dy < 2; dy++) {
@@ -199,9 +202,9 @@ vtkPolyData *SurfaceExtractor::extract_surfaces(
               code_sets.insert(code[dx][dy][dz]);
 
               /// DEBUG ///
-              if (ftle->GetPointData()->GetScalars()->GetTuple1(point_id) < 0.06) {
-                too_small = true;
-              }
+              // if (ftle->GetPointData()->GetScalars()->GetTuple1(point_id) < 0.06) {
+              //   too_small = true;
+              // }
             }
           }
         }
