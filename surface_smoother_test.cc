@@ -10,6 +10,8 @@
 const char *kOriginalSurfaceFile = "poly_mesh.vtk";
 const char *kSmoothedSurfaceFile = "smoothed_surfaces.vtk";
 
+const int kNumberOfSmoothing = 80;
+
 void smooth_surfaces_test() {
   printf("smooth_surfaces_test {\n");
 
@@ -24,7 +26,15 @@ void smooth_surfaces_test() {
   surfaces->ShallowCopy(reader->GetOutput());
 
   SurfaceSmoother smoother;
-  vtkPolyData *smoothed_surfaces = smoother.smooth_surfaces(surfaces, 0.5);
+  vtkPolyData *smoothed_surfaces = smoother.smooth_surfaces(surfaces, 1.0);
+
+  for (int count = 1; count < kNumberOfSmoothing; count++) {
+    vtkPolyData *new_smoothed_surfaces =
+        smoother.smooth_surfaces(smoothed_surfaces, 1.0);
+    smoothed_surfaces->Delete();
+
+    smoothed_surfaces = new_smoothed_surfaces;
+  }
 
   vtkSmartPointer<vtkPolyDataWriter> writer =
       vtkSmartPointer<vtkPolyDataWriter>::New();

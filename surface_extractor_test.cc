@@ -18,8 +18,8 @@
 #include <iostream>
 
 // const char *kBasinFile = "data/smoothed_basins.vtk";
-const char *kBasinFile = "../Watershed/basin_index.vtk";
-// const char *kBasinFile = "../Watershed/filtered_basin.vtk";
+// const char *kBasinFile = "../Watershed/basin_index.vtk";
+const char *kBasinFile = "../Watershed/filtered_basin.vtk";
 const char *kFTLEFile = "data/smoothed_ftle.vtk";
 // const char *kBasinFile = "data/basins.vtk";
 // const char *kFTLEFile = "data/ftle.vtk";
