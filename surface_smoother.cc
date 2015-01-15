@@ -5,6 +5,7 @@
 #include <vtkPolyData.h>
 #include <vtkPoints.h>
 
-vtkPolyData *SurfaceSmoother::smooth_surfaces(vtkPolyData *surfaces) {
-  return NULL;
+vtkPolyData *SurfaceSmoother::smooth_surfaces(
+    vtkPolyData *surfaces, double lambda) {
+  
 }

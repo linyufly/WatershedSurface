@@ -7,7 +7,7 @@ class vtkPolyData;
 
 class SurfaceSmoother {
  public:
-  vtkPolyData *smooth_surfaces(vtkPolyData *surfaces);
+  vtkPolyData *smooth_surfaces(vtkPolyData *surfaces, double lambda);
 };
 
 #endif  // SURFACE_SMOOTHER_H_
