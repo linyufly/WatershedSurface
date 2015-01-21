@@ -5,8 +5,8 @@
 #include "marchingCubesTable.h"
 #include "util.h"
 
-#include <set>
 #include <algorithm>
+#include <set>
 
 #include <vtkCellArray.h>
 #include <vtkPolyData.h>
