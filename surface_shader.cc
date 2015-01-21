@@ -20,7 +20,7 @@
 #include <vtkPoints.h>
 #include <vtkSmartPointer.h>
 
-const double kGap = 0.00001;
+const double kGap = 0.0001;
 
 namespace {
 

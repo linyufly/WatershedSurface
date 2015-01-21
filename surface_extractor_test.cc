@@ -32,7 +32,7 @@ const char *kFTLEFile = "data/smoothed_ftle.vtk";
 const char *kPolyDataFile = "poly_mesh.vtk";
 const char *kColoredSurfaceFile = "colored_surfaces.vtk";
 
-const int kNumberOfSmoothing = 50;  // 200 for brute-force mesh
+const int kNumberOfSmoothing = 100;  // 200 for brute-force mesh
 const double kLambda = 1.0;
 
 void extract_surfaces_test() {
