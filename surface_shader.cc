@@ -187,7 +187,7 @@ vtkPolyData *SurfaceShader::get_colored_surfaces(
       vtkPolyData::New();
 
   vtkCellArray *cells = positive_region->GetPolys();
-  vtkPoints *points = negative_region->GetPoints();
+  vtkPoints *points = positive_region->GetPoints();
 
   int num_cells = cells->GetNumberOfCells();
   int num_points = points->GetNumberOfPoints();
@@ -215,11 +215,16 @@ vtkPolyData *SurfaceShader::get_colored_surfaces(
     }
 
     lcs::Vector normal =
-        lcs::Cross(curr_points[2] - curr_points[0],
-                   curr_points[1] - curr_points[0]);
+        lcs::Cross(curr_points[1] - curr_points[0],
+                   curr_points[2] - curr_points[0]);
 
-    normal = normal / normal.Length();
-    normal = normal * kGap;
+    if (normal.Length() < 0.000001) {
+      // report_error("Small length of a vector: %lf", normal.Length());
+      normal = lcs::Vector(0.0, 0.0, 0.0);
+    } else {
+      normal = normal / normal.Length();
+      normal = normal * kGap;
+    }
 
     // Add positive triangle
     for (int loc = 0; loc < 3; loc++) {

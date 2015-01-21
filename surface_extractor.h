@@ -11,6 +11,11 @@ class SurfaceExtractor {
   // Region numbers are consecutive 0-based integers.
   vtkPolyData *extract_surfaces(vtkStructuredPoints *ftle,
                                 vtkStructuredPoints *basins);
+
+  // The positive face of a triangle is in counter clockwise.
+  void extract_surfaces_with_regions(vtkStructuredPoints *basins,
+                                     vtkPolyData **positive_region,
+                                     vtkPolyData **negative_region);
 };
 
 #endif  // SURFACE_EXTRACTOR_H_

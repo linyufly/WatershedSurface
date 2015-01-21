@@ -9,7 +9,10 @@ add_executable(SphereGeneratorTest sphere_generator_test.cc
                                    sphere_generator.cc)
 add_executable(SurfaceExtractorTest surface_extractor_test.cc
                                     surface_extractor.cc
-                                    util.cc)
+                                    surface_smoother.cc
+                                    surface_shader.cc
+                                    util.cc
+                                    lcsGeometry.cpp)
 add_executable(SurfaceSmootherTest surface_smoother_test.cc
                                    surface_smoother.cc
                                    util.cc)
