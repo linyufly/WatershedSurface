@@ -100,6 +100,15 @@ int insert_face_point(int x, int y, int z, int face_id, int ****face_mark,
   return face_mark[x][y][z][face_id];
 }
 
+void get_grid_point(int x, int y, int z,
+                    double *origin, double *spacing,
+                    double *coordinates) {
+  int index[3] = {x, y, z};
+  for (int dim = 0; dim < 3; dim++) {
+    coordinates[dim] = origin[dim] + spacing[dim] * index[dim];
+  }
+}
+
 // alpha is the ratio from (x, y, z) to the other end.
 int insert_edge_point_basic_1(
     int x, int y, int z, int dim, int ****edge_mark,
@@ -730,6 +739,8 @@ vtkPolyData *SurfaceExtractor::extract_surfaces_with_regions(
           for (int i = 0; i < numVertsTable[cube_code]; i += 3) {
             mesh_cells->InsertNextCell(3);
 
+            double triangle[3][3];
+
             for (int j = 0; j < 3; j++) {
               int edge_idx = triTable[cube_code][i + j];
               int vtx_1 = kEdgeList[edge_idx][0];
@@ -738,11 +749,38 @@ vtkPolyData *SurfaceExtractor::extract_surfaces_with_regions(
               insert_edge_point(x, y, z, vtx_1, vtx_2,
                                 edge_mark, origin, spacing, 0.5,
                                 mesh_points, mesh_cells);
+
+              mesh_points->GetPoint(mesh_points->GetNumberOfPoints() - 1,
+                                    triangle[j]);
             }
 
             // Examine the first vertex of the triangle
             int edge_idx = triTable[cube_code][i];
-            int vtx_1 = kEdgeList[edge
+            int vtx_1 = kEdgeList[edge_idx][0];
+            int vtx_2 = kEdgeList[edge_idx][1];
+            int dx_1 = kVertexList[vtx_1][0];
+            int dy_1 = kVertexList[vtx_1][1];
+            int dz_1 = kVertexList[vtx_1][2];
+            int dx_2 = kVertexList[vtx_2][0];
+            int dy_2 = kVertexList[vtx_2][1];
+            int dz_2 = kVertexList[vtx_2][2];
+            double grid_point_1[3];
+            get_grid_point(x + dx_1, y + dy_1, z + dz_1,
+                           origin, spacing, grid_point_1);
+            double sign = sign_of_face(
+                grid_point_1[0], grid_point_1[1], grid_point_2[2],
+                triangle[0][0], triangle[0][1], triangle[0][2],
+                triangle[1][0], triangle[1][1], triangle[1][2],
+                triangle[2][0], triangle[2][1], triangle[2][2]);
+
+            // Assign positive and negative faces
+            if (sign < 0.0) {
+              negative_face.push_back(code[dx_1][dy_1][dz_1]);
+              positive_face.push_back(code[dx_2][dy_2][dz_2]);
+            } else {
+              negative_face.push_back(code[dx_2][dy_2][dz_2]);
+              positive_face.push_back(code[dx_1][dy_1][dz_1]);
+            }
           }
         } else {  // Need in-cell point and face point
             double center_x = origin[0] + spacing[0] * (x + 0.5);
