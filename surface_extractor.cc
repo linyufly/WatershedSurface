@@ -604,8 +604,9 @@ void SurfaceExtractor::extract_surfaces_with_regions(
                   int curr_id = kFaceList[face_id][i];
                   int succ_id = kFaceList[face_id][(i + 1) % 4];
 
-                  int positive_color = local_non_binary_code[(i + 1) % 4];
-                  int negative_color = local_non_binary_code[i];
+                  // The negative_color and positive_color have not been tested.
+                  int negative_color = local_non_binary_code[(i + 1) % 4];
+                  int positive_color = local_non_binary_code[i];
                   positive_markers.push_back(positive_color);
                   negative_markers.push_back(negative_color);
 
@@ -828,10 +829,15 @@ vtkPolyData *SurfaceExtractor::extract_surfaces_with_regions(
                     }
                   }
 
+                  int negative_color = local_non_binary_code[single];
+                  int positive_color = local_non_binary_code[(single + 1) % 4];
+                  positive_face.push_back(positive_color);
+                  negative_face.push_back(negative_color);
+
                   int prev_id = kFaceList[face_id][(single + 3) % 4];
                   int succ_id = kFaceList[face_id][(single + 1) % 4];
                   int curr_id = kFaceList[face_id][single];
-
+           
                   mesh_cells->InsertNextCell(3);
                   mesh_cells->InsertCellPoint(center_id);
                   insert_edge_point(x, y, z, prev_id, curr_id,
@@ -849,8 +855,20 @@ vtkPolyData *SurfaceExtractor::extract_surfaces_with_regions(
                   // BB or AA
                   mesh_cells->InsertNextCell(3);
                   mesh_cells->InsertCellPoint(center_id);
+
+                  bool first = true;
                   for (int i = 0; i < 4; i++) {
                     if (local_code[i] != local_code[(i + 1) % 4]) {
+                      if (first) {
+                        first = false;
+                        int negative_color =
+                            local_non_binary_code[(i + 1) % 4];
+                        int positive_color =
+                            local_non_binary_code[i];
+                        positive_face.push_back(positive_color);
+                        negative_face.push_back(negative_color);
+                      }
+
                       int curr_id = kFaceList[face_id][i];
                       int succ_id = kFaceList[face_id][(i + 1) % 4];
                       insert_edge_point(x, y, z, curr_id, succ_id,
