@@ -924,25 +924,34 @@ vtkPolyData *SurfaceExtractor::extract_surfaces_with_regions(
     }
   }
 
-  vtkSmartPointer<vtkDoubleArray> face_color_array =
+  vtkSmartPointer<vtkDoubleArray> positive_face_array =
+      vtkSmartPointer<vtkDoubleArray>::New();
+  vtkSmartPointer<vtkDoubleArray> negative_face_array =
       vtkSmartPointer<vtkDoubleArray>::New();
 
-  face_color_array->SetNumberOfComponents(2);
+  positive_face_array->SetNumberOfComponents(1);
+  negative_face_array->SetNumberOfComponents(1);
 
-  face_color_array->SetNumberOfTuples(positive_face.size());
+  positive_face_array->SetNumberOfTuples(positive_face.size());
+  negative_face_array->SetNumberOfTuples(negative_face.size());
+  
+  positive_face_array->SetName("second_face");
+  negative_face_array->SetName("first_face");
 
   for (int cell_index = 0;
        cell_index < static_cast<int>(positive_face.size());
        cell_index++) {
-    face_color_array->SetTuple2(cell_index,
-                                negative_face[cell_index],
-                                positive_face[cell_index]);
+    positive_face_array->SetTuple1(cell_index, positive_face[cell_index]);
+    negative_face_array->SetTuple1(cell_index, negative_face[cell_index]);
   }
 
   vtkPolyData *mesh = vtkPolyData::New();
   mesh->SetPoints(mesh_points);
   mesh->SetPolys(mesh_cells);
-  mesh->GetCellData()->SetScalars(face_color_array);
+  mesh->GetCellData()->AddArray(positive_face_array);
+  mesh->GetCellData()->AddArray(negative_face_array);
+
+  // mesh->PrintSelf(std::cout, vtkIndent(0));
 
   delete_matrix(edge_mark);
   delete_matrix(face_mark);
