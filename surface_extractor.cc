@@ -669,9 +669,9 @@ vtkPolyData *SurfaceExtractor::extract_surfaces_with_regions(
       vtkStructuredPoints *basin_field) {
   int dimensions[3];
   double spacing[3], origin[3];
-  basins->GetDimensions(dimensions);
-  basins->GetSpacing(spacing);
-  basins->GetOrigin(origin);
+  basin_field->GetDimensions(dimensions);
+  basin_field->GetSpacing(spacing);
+  basin_field->GetOrigin(origin);
 
   int nx = dimensions[0];
   int ny = dimensions[1];
@@ -715,9 +715,9 @@ vtkPolyData *SurfaceExtractor::extract_surfaces_with_regions(
               int curr_y = y + dy;
               int curr_z = z + dz;
               int point_id = (curr_z * ny + curr_y) * nx + curr_x;
-              code[dx][dy][dz] = basins->GetPointData()
-                                       ->GetScalars()
-                                       ->GetTuple1(point_id);
+              code[dx][dy][dz] = basin_field->GetPointData()
+                                            ->GetScalars()
+                                            ->GetTuple1(point_id);
               code_sets.insert(code[dx][dy][dz]);
             }
           }
@@ -769,7 +769,7 @@ vtkPolyData *SurfaceExtractor::extract_surfaces_with_regions(
             get_grid_point(x + dx_1, y + dy_1, z + dz_1,
                            origin, spacing, grid_point_1);
             double sign = sign_of_face(
-                grid_point_1[0], grid_point_1[1], grid_point_2[2],
+                grid_point_1[0], grid_point_1[1], grid_point_1[2],
                 triangle[0][0], triangle[0][1], triangle[0][2],
                 triangle[1][0], triangle[1][1], triangle[1][2],
                 triangle[2][0], triangle[2][1], triangle[2][2]);
@@ -900,7 +900,13 @@ vtkPolyData *SurfaceExtractor::extract_surfaces_with_regions(
                   mesh_points);
 
               for (int i = 0; i < 4; i++) {
-                if (local_non_binary_code[i] != local_non_binary_code[(i + 1) % 4]) {
+                if (local_non_binary_code[i]
+                    != local_non_binary_code[(i + 1) % 4]) {
+                  int positive_color = local_non_binary_code[(i + 1) % 4];
+                  int negative_color = local_non_binary_code[i];
+                  positive_face.push_back(positive_color);
+                  negative_face.push_back(negative_color);
+
                   int curr_id = kFaceList[face_id][i];
                   int succ_id = kFaceList[face_id][(i + 1) % 4];
                   mesh_cells->InsertNextCell(3);
@@ -917,9 +923,25 @@ vtkPolyData *SurfaceExtractor::extract_surfaces_with_regions(
     }
   }
 
+  vtkSmartPointer<vtkIntArray> face_color_array =
+      vtkSmartPointer<vtkIntArray>::New();
+
+  face_color_array->SetNumberOfComponents(2);
+
+  face_color_array->SetNumberOfTuples(positive_face.size());
+
+  for (int cell_index = 0;
+       cell_index < static_cast<int>(positive_face.size());
+       cell_index++) {
+    face_color_array->SetTuple2(cell_index,
+                                negative_face[cell_index],
+                                positive_face[cell_index]);
+  }
+
   vtkPolyData *mesh = vtkPolyData::New();
   mesh->SetPoints(mesh_points);
   mesh->SetPolys(mesh_cells);
+  mesh->GetCellData()->SetScalars(face_color_array);
 
   delete_matrix(edge_mark);
   delete_matrix(face_mark);
