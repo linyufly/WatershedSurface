@@ -174,6 +174,25 @@ int insert_edge_point(int x, int y, int z, int vtx_1, int vtx_2,
   return point_id;
 }
 
+void get_coefficients_for_3d_equation(const double inv_a[3][3],
+                                      const double values[4],
+                                      double coefficients[3],
+                                      double *right_value) {
+  for (int index_unknown = 0; index_unknown < 3; index_unknown++) {
+    coefficients[index_unknown] = 0.0;
+  }
+
+  for (int index_value = 1; index_value <= 3; index_value++) {
+    for (int index_unknown = 0; index_unknown < 3; index_unknown++) {
+      coefficients[index_unknown] +=
+          inv_a[index_value - 1][index_unknown]
+          * (values[index_value] - values[0]);
+    }
+  }
+
+  *right_value = -values[0];
+}
+
 }
 
 vtkPolyData *SurfaceExtractor::extract_surfaces(
@@ -928,6 +947,8 @@ vtkPolyData *SurfaceExtractor::extract_surfaces_with_regions(
     }
   }
 
+  // Calculate locations of mesh points
+
   vtkSmartPointer<vtkDoubleArray> positive_face_array =
       vtkSmartPointer<vtkDoubleArray>::New();
   vtkSmartPointer<vtkDoubleArray> negative_face_array =
@@ -954,8 +975,6 @@ vtkPolyData *SurfaceExtractor::extract_surfaces_with_regions(
   mesh->SetPolys(mesh_cells);
   mesh->GetCellData()->AddArray(positive_face_array);
   mesh->GetCellData()->AddArray(negative_face_array);
-
-  // mesh->PrintSelf(std::cout, vtkIndent(0));
 
   delete_matrix(edge_mark);
   delete_matrix(face_mark);
