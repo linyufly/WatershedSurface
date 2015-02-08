@@ -11,6 +11,7 @@
 
 #include <vtkCellArray.h>
 #include <vtkCellData.h>
+#include <vtkDoubleArray.h>
 #include <vtkIntArray.h>
 #include <vtkPolyData.h>
 #include <vtkPointData.h>
@@ -923,8 +924,8 @@ vtkPolyData *SurfaceExtractor::extract_surfaces_with_regions(
     }
   }
 
-  vtkSmartPointer<vtkIntArray> face_color_array =
-      vtkSmartPointer<vtkIntArray>::New();
+  vtkSmartPointer<vtkDoubleArray> face_color_array =
+      vtkSmartPointer<vtkDoubleArray>::New();
 
   face_color_array->SetNumberOfComponents(2);
 
