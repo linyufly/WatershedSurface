@@ -748,11 +748,11 @@ vtkPolyData *SurfaceExtractor::extract_surfaces_with_regions(
               int vtx_1 = kEdgeList[edge_idx][0];
               int vtx_2 = kEdgeList[edge_idx][1];
 
-              insert_edge_point(x, y, z, vtx_1, vtx_2,
-                                edge_mark, origin, spacing, 0.5,
-                                mesh_points, mesh_cells);
+              int point_id = insert_edge_point(x, y, z, vtx_1, vtx_2,
+                                               edge_mark, origin, spacing, 0.5,
+                                               mesh_points, mesh_cells);
 
-              mesh_points->GetPoint(mesh_points->GetNumberOfPoints() - 1,
+              mesh_points->GetPoint(point_id,
                                     triangle[j]);
             }
 
@@ -782,6 +782,10 @@ vtkPolyData *SurfaceExtractor::extract_surfaces_with_regions(
             } else {
               negative_face.push_back(code[dx_2][dy_2][dz_2]);
               positive_face.push_back(code[dx_1][dy_1][dz_1]);
+            }
+
+            if (code[dx_1][dy_1][dz_1] == code[dx_2][dy_2][dz_2]) {
+              report_error("A triangle separates the same region.");
             }
           }
         } else {  // Need in-cell point and face point

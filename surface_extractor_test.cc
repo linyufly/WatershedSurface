@@ -177,7 +177,11 @@ void extract_surfaces_with_regions_test_2() {
   printf("num_points = %d\n", num_points);
   printf("num_cells = %d\n", num_cells);
 
+  // vtkPolyData *smoothed_surfaces = vtkPolyData::New();
+  // smoothed_surfaces->DeepCopy(surfaces);
+
   SurfaceSmoother smoother;
+
   vtkPolyData *smoothed_surfaces = smoother.smooth_surfaces(
       surfaces, kLambda);
 
@@ -229,7 +233,7 @@ void extract_surfaces_with_regions_test_2() {
 
   SurfaceShader shader;
   vtkPolyData *colored_surfaces = shader.get_colored_surfaces(
-      smoothed_surfaces, negative_region);
+      positive_region, negative_region);
 
   vtkSmartPointer<vtkPolyDataWriter> writer =
       vtkSmartPointer<vtkPolyDataWriter>::New();
