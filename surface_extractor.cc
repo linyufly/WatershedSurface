@@ -21,6 +21,8 @@
 
 namespace {
 
+const int kNumberOfBisections = 8;
+
 const int kVertexList[8][3] = {
     {0, 0, 0}, {1, 0, 0}, {1, 1, 0}, {0, 1, 0},
     {0, 0, 1}, {1, 0, 1}, {1, 1, 1}, {0, 1, 1}
@@ -191,6 +193,165 @@ void get_coefficients_for_3d_equation(const double inv_a[3][3],
   }
 
   *right_value = -values[0];
+}
+
+void clamp(int high, int *val) {
+  if (*val < 0) {
+    *val += 2;
+  }
+
+  if (*val >= high) {
+    *val -= 2;
+  }
+}
+
+double get_scalar(vtkStructuredPoints *scalar_field,
+                  int nx, int ny, int nz, int x, int y, int z) {
+  return scalar_field->GetPointData()
+                     ->GetScalars()
+                     ->GetTuple1((z * ny + y) * nx + x);
+}
+
+void get_gradients(int x, int y, int z,
+                   vtkStructuredPoints *scalar_field,
+                   double gradients[2][2][2][3]) {
+  int dimensions[3];
+  double spacing[3];
+
+  int nx = dimensions[0];
+  int ny = dimensions[1];
+  int nz = dimensions[2];
+
+  scalar_field->GetDimensions(dimensions);
+  scalar_field->GetSpacing(spacing);
+
+  for (int dx = 0; dx < 2; dx++) {
+    for (int dy = 0; dy < 2; dy++) {
+      for (int dz = 0; dz < 2; dz++) {
+        int global_x = x + dx;
+        int global_y = y + dy;
+        int global_z = z + dz;
+
+        int other_x = dx == 0 ? global_x - 1 : global_x + 1;
+        int other_y = dy == 0 ? global_y - 1 : global_y + 1;
+        int other_z = dz == 0 ? global_z - 1 : global_z + 1;
+
+        clamp(nx, &other_x);
+        clamp(ny, &other_y);
+        clamp(nz, &other_z);
+
+        double curr_value = get_scalar(
+            scalar_field, nx, ny, nz, global_x, global_y, global_z);
+
+        gradients[dx][dy][dz][0] = (get_scalar(
+            scalar_field, nx, ny, nz, other_x, global_y, global_z)
+            - curr_value) / ((other_x - global_x) * spacing[0]);
+
+        gradients[dx][dy][dz][1] = (get_scalar(
+            scalar_field, nx, ny, nz, global_x, other_y, global_z)
+            - curr_value) / ((other_y - global_y) * spacing[1]);
+
+        gradients[dx][dy][dz][2] = (get_scalar(
+            scalar_field, nx, ny, nz, global_x, global_y, other_z)
+            - curr_value) / ((other_z - global_z) * spacing[2]);
+      }
+    }
+  }
+}
+
+// Mesh: (1) No edge is shared by more than two faces;
+//       (2) All the faces are connected by edges.
+
+double get_gradient_norm_3d(double gradients[2][2][2][3],
+                            double dx, double dy, double dz) {
+  double gradient[3];
+  for (int dimension = 0; dimension < 3; dimension++) {
+    double g00 = gradients[0][0][0][dimension] * (1.0 - dz)
+                 + gradients[0][0][1][dimension] * dz;
+    double g01 = gradients[0][1][0][dimension] * (1.0 - dz)
+                 + gradients[0][1][1][dimension] * dz;
+    double g10 = gradients[1][0][0][dimension] * (1.0 - dz)
+                 + gradients[1][0][1][dimension] * dz;
+    double g11 = gradients[1][1][0][dimension] * (1.0 - dz)
+                 + gradients[1][1][1][dimension] * dz;
+
+    double g0 = g00 * (1.0 - dy) + g01 * dy;
+    double g1 = g10 * (1.0 - dy) + g11 * dy;
+
+    gradient[dimension] = g0 * (1.0 - dx) + g1 * dx;
+  }
+
+  double norm = 0.0;
+  for (int dimension = 0; dimension < 3; dimension++) {
+    norm += gradient[dimension] * gradient[dimension];
+  }
+
+  return norm;
+}
+
+void get_center_point(double gradients[2][2][2][3],
+                      double *dx, double *dy, double *dz) {
+  double lower_x = 0.0, upper_x = 1.0;
+  double lower_y = 0.0, upper_y = 1.0;
+  double lower_z = 0.0, upper_z = 1.0;
+
+  for (int iteration_id = 0; iteration_id < kNumberOfBisections;
+       iteration_id++) {
+    double middle_x = (lower_x + upper_x) / 2.0;
+    double middle_y = (lower_y + upper_y) / 2.0;
+    double middle_z = (lower_z + upper_z) / 2.0;
+
+    double new_lower_x = -1.0, new_upper_x = -1.0;
+    double new_lower_y = -1.0, new_upper_y = -1.0;
+    double new_lower_z = -1.0, new_upper_z = -1.0;
+
+    double minimal = -1.0;
+
+    for (int block_x = 0; block_x < 2; block_x++) {
+      for (int block_y = 0; block_y < 2; block_y++) {
+        for (int block_z = 0; block_z < 2; block_z++) {
+          double curr_lower_x = block_x == 0 ? lower_x : middle_x;
+          double curr_upper_x = block_x == 0 ? middle_x : upper_x;
+          double curr_lower_y = block_y == 0 ? lower_y : middle_y;
+          double curr_upper_y = block_y == 0 ? middle_y : upper_y;
+          double curr_lower_z = block_z == 0 ? lower_z : middle_z;
+          double curr_upper_z = block_z == 0 ? middle_z : upper_z;
+
+          double curr_x = (curr_lower_x + curr_upper_x) / 2.0;
+          double curr_y = (curr_lower_y + curr_upper_y) / 2.0;
+          double curr_z = (curr_lower_z + curr_upper_z) / 2.0;
+
+          double magnitude = get_gradient_norm_3d(gradients, curr_x, curr_y, curr_z);
+
+          if (minimal < 0.0 || minimal > magnitude) {
+            minimal = magnitude;
+
+            new_lower_x = curr_lower_x;
+            new_upper_x = curr_upper_x;
+
+            new_lower_y = curr_lower_y;
+            new_upper_y = curr_upper_y;
+
+            new_lower_z = curr_lower_z;
+            new_upper_z = curr_upper_z;
+          }
+        }
+      }
+    }
+
+    lower_x = new_lower_x;
+    upper_x = new_upper_x;
+
+    lower_y = new_lower_y;
+    upper_y = new_upper_y;
+
+    lower_z = new_lower_z;
+    upper_z = new_upper_z;
+  }
+
+  *dx = (lower_x + upper_x) / 2.0;
+  *dy = (lower_y + upper_y) / 2.0;
+  *dz = (lower_z + upper_z) / 2.0;
 }
 
 }
