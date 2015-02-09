@@ -40,7 +40,6 @@ const int kFaceList[6][4] = {
     {1, 5, 6, 2}, {2, 6, 7, 3}, {4, 7, 6, 5}
 };
 
-
 double triple_product(double x1, double y1, double z1,
                       double x2, double y2, double z2,
                       double x3, double y3, double z3) {
@@ -262,6 +261,9 @@ void get_gradients(int x, int y, int z,
 // Mesh: (1) No edge is shared by more than two faces;
 //       (2) All the faces are connected by edges.
 
+// We do not need to set face point on minimal point. They
+// should in the segment connected by two center points.
+
 double get_gradient_norm_3d(double gradients[2][2][2][3],
                             double dx, double dy, double dz) {
   double gradient[3];
@@ -352,6 +354,34 @@ void get_center_point(double gradients[2][2][2][3],
   *dx = (lower_x + upper_x) / 2.0;
   *dy = (lower_y + upper_y) / 2.0;
   *dz = (lower_z + upper_z) / 2.0;
+}
+
+void add_a_single_triangle(int single, int face_id, int center_id,
+                           int x, int y, int z,
+                           double origin[3], double spacing[3],
+                           int local_non_binary_code[4],
+                           std::vector<int> *positive_face,
+                           std::vector<int> *negative_face,
+                           vtkCellArray *mesh_cells,
+                           vtkPoints *mesh_points,
+                           int ****edge_mark) {
+  int negative_color = local_non_binary_code[single];
+  int positive_color = local_non_binary_code[(single + 1) % 4];
+  positive_face->push_back(positive_color);
+  negative_face->push_back(negative_color);
+
+  int prev_id = kFaceList[face_id][(single + 3) % 4];
+  int succ_id = kFaceList[face_id][(single + 1) % 4];
+  int curr_id = kFaceList[face_id][single];
+           
+  mesh_cells->InsertNextCell(3);
+  mesh_cells->InsertCellPoint(center_id);
+  insert_edge_point(x, y, z, prev_id, curr_id,
+                    edge_mark, origin, spacing, 0.5,
+                    mesh_points, mesh_cells);
+  insert_edge_point(x, y, z, succ_id, curr_id,
+                    edge_mark, origin, spacing, 0.5,
+                    mesh_points, mesh_cells);
 }
 
 }
@@ -1014,8 +1044,8 @@ vtkPolyData *SurfaceExtractor::extract_surfaces_with_regions(
                     }
                   }
 
-                  int negative_color = local_non_binary_code[single];
-                  int positive_color = local_non_binary_code[(single + 1) % 4];
+                  // int negative_color = local_non_binary_code[single];
+                  // int positive_color = local_non_binary_code[(single + 1) % 4];
                   positive_face.push_back(positive_color);
                   negative_face.push_back(negative_color);
 
