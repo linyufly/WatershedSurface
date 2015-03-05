@@ -66,9 +66,9 @@ void SphereGenerator::generate_one_sphere(
         double coord_z = z * spacing[2];
 
         double d = distance(coord_x, coord_y, coord_z, c_x, c_y, c_z);
-        d = fabs(d - radius);
+        double distance_to_surface = fabs(d - radius);
 
-        scalars->SetTuple1(index, 1 / (d + 1));
+        scalars->SetTuple1(index, 1 / (distance_to_surface + 1));
 
         int region = -1;
 
