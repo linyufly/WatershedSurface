@@ -875,6 +875,7 @@ void SurfaceExtractor::extract_surfaces_with_regions(
   delete_matrix(face_mark);
 }
 
+/*
 vtkPolyData *SurfaceExtractor::extract_surfaces_with_regions(
       vtkStructuredPoints *scalar_field,
       vtkStructuredPoints *basin_field) {
@@ -1172,4 +1173,4 @@ vtkPolyData *SurfaceExtractor::extract_surfaces_with_regions(
 
   return mesh;
 }
-
+*/

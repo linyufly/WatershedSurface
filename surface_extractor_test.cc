@@ -26,8 +26,13 @@
 // const char *kBasinFile = "../Watershed/basin_index.vtk";
 // const char *kBasinFile = "../Watershed/filtered_basin.vtk";
 // const char *kBasinFile = "data/basins_cell_8.vtk";
-const char *kBasinFile = "two_spheres_basins.vtk";
-const char *kFTLEFile = "two_spheres_ftle.vtk";
+
+// const char *kBasinFile = "two_spheres_basins.vtk";
+// const char *kFTLEFile = "two_spheres_ftle.vtk";
+
+const char *kBasinFile = "one_sphere_basins.vtk";
+const char *kFTLEFile = "one_sphere_ftle.vtk";
+
 // const char *kFTLEFile = "data/smoothed_ftle.vtk";
 // const char *kBasinFile = "data/basins.vtk";
 // const char *kFTLEFile = "data/ftle.vtk";
@@ -153,7 +158,7 @@ void extract_surfaces_with_regions_test() {
 
   printf("} extract_surfaces_with_regions_test\n\n");
 }
-
+/*
 void extract_surfaces_with_regions_test_2() {
   printf("extract_surfaces_with_regions_test_2 {\n");
 
@@ -264,12 +269,12 @@ void extract_surfaces_with_regions_test_2() {
 
   printf("} extract_surfaces_with_regions_test_2\n\n");
 }
-
+*/
 
 int main() {
-  // extract_surfaces_test();
+  extract_surfaces_test();
   // extract_surfaces_with_regions_test();
-  extract_surfaces_with_regions_test_2();
+  // extract_surfaces_with_regions_test_2();
 
   return 0;
 }
